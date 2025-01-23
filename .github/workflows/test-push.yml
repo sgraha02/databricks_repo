@@ -14,4 +14,4 @@ jobs:
         uses: actions/checkout@v2  # Checkout the repo to the runner
 
       - name: Print a message
-        run: echo "GitHub Actions workflow triggered successfully by a push to the dev branch!"
+        run: echo "Worked!"
