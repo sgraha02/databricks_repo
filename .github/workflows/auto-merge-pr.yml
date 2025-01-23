@@ -1,47 +1,41 @@
-name: Auto Merge PR after Push to Dev
+name: Auto Merge Dev to Main
 
 on:
   push:
     branches:
-      - dev
+      - dev  # Trigger on push to dev branch
 
 jobs:
-  merge_pr:
+  auto_merge:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout the repository
+      # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Get the latest open PR for dev -> main (or your preferred branch)
-      - name: Find and Merge PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Step 2: Set up Git configuration
+      - name: Set up Git
         run: |
-          # Fetch all open PRs that are targeting 'main' and have 'dev' as the source branch
-          prs=$(curl -s \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&base=main&head=${{ github.repository_owner }}:dev")
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-          # Check if any PR is found
-          if [ "$(echo "$prs" | jq 'length')" -gt 0 ]; then
-            # Get the first PR ID
-            pr_number=$(echo "$prs" | jq '.[0].number')
+      # Step 3: Fetch the latest branches
+      - name: Fetch all branches
+        run: git fetch --prune --unshallow
 
-            # Attempt to merge the PR using the GitHub API
-            merge_response=$(curl -s -X PUT \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -d '{"merge_method":"merge"}' \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$pr_number/merge")
+      # Step 4: Merge dev into main
+      - name: Merge dev into main
+        run: |
+          # Checkout the main branch
+          git checkout main
+          
+          # Merge dev into main
+          git merge origin/dev --no-ff --no-edit
 
-            # Check if the merge was successful
-            if [[ $(echo "$merge_response" | jq -r '.merged') == "true" ]]; then
-              echo "PR #$pr_number successfully merged."
-            else
-              echo "PR #$pr_number merge failed: $(echo "$merge_response" | jq -r '.message')"
-              exit 1
-            fi
-          else
-            echo "No open PR found to merge. Skipping."
-          fi
+      # Step 5: Push the merge to main
+      - name: Push changes to main
+        run: |
+          git push origin main
+
+      # Optional: Step 6: Handle any merge conflicts if needed (this can be extended if you want)
+      # If there's a merge conflict, the workflow will fail and you may need manual resolution.
