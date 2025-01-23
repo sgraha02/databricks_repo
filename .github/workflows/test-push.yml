@@ -1,0 +1,17 @@
+name: Test Push Trigger
+
+on:
+  push:
+    branches:
+      - dev  # Trigger on push to dev branch
+
+jobs:
+  test-job:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2  # Checkout the repo to the runner
+
+      - name: Print a message
+        run: echo "GitHub Actions workflow triggered successfully by a push to the dev branch!"
