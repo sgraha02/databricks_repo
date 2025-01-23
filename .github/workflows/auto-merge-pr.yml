@@ -1,4 +1,4 @@
-name: Auto Merge PR on Dev Commit
+name: Auto Merge PR after Push to Dev
 
 on:
   push:
@@ -6,32 +6,42 @@ on:
       - dev
 
 jobs:
-  merge:
+  merge_pr:
     runs-on: ubuntu-latest
+
     steps:
-      # Step 1: Checkout the code
+      # Step 1: Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Check if the PR is ready to be merged, then merge it
-      - name: Auto Merge PR to Main
+      # Step 2: Get the latest open PR for dev -> main (or your preferred branch)
+      - name: Find and Merge PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the latest PR linked to dev branch
-          pr_url=$(curl -s \
+          # Fetch all open PRs that are targeting 'main' and have 'dev' as the source branch
+          prs=$(curl -s \
             -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:dev&state=open" | \
-            jq -r '.[0].url')
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&base=main&head=${{ github.repository_owner }}:dev")
 
-          if [ "$pr_url" != "null" ]; then
-            # Get the PR number from the URL
-            pr_number=$(echo $pr_url | sed 's#.*/pull/\([0-9]*\)#\1#')
+          # Check if any PR is found
+          if [ "$(echo "$prs" | jq 'length')" -gt 0 ]; then
+            # Get the first PR ID
+            pr_number=$(echo "$prs" | jq '.[0].number')
 
-            # Merge the PR
-            curl -X PUT -H "Authorization: token $GITHUB_TOKEN" \
+            # Attempt to merge the PR using the GitHub API
+            merge_response=$(curl -s -X PUT \
+              -H "Authorization: token $GITHUB_TOKEN" \
               -d '{"merge_method":"merge"}' \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/${pr_number}/merge"
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$pr_number/merge")
+
+            # Check if the merge was successful
+            if [[ $(echo "$merge_response" | jq -r '.merged') == "true" ]]; then
+              echo "PR #$pr_number successfully merged."
+            else
+              echo "PR #$pr_number merge failed: $(echo "$merge_response" | jq -r '.message')"
+              exit 1
+            fi
           else
-            echo "No open PRs found, skipping merge."
+            echo "No open PR found to merge. Skipping."
           fi
