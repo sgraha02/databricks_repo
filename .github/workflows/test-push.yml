@@ -3,7 +3,7 @@ name: Test Push Trigger
 on:
   push:
     branches:
-      - dev  # Trigger on push to dev branch
+      - 'dev'  # Trigger on push to dev branch
 
 jobs:
   test-job:
