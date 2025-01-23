@@ -1,0 +1,37 @@
+name: Auto Merge PR on Dev Commit
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Check if the PR is ready to be merged, then merge it
+      - name: Auto Merge PR to Main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the latest PR linked to dev branch
+          pr_url=$(curl -s \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:dev&state=open" | \
+            jq -r '.[0].url')
+
+          if [ "$pr_url" != "null" ]; then
+            # Get the PR number from the URL
+            pr_number=$(echo $pr_url | sed 's#.*/pull/\([0-9]*\)#\1#')
+
+            # Merge the PR
+            curl -X PUT -H "Authorization: token $GITHUB_TOKEN" \
+              -d '{"merge_method":"merge"}' \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/${pr_number}/merge"
+          else
+            echo "No open PRs found, skipping merge."
+          fi
