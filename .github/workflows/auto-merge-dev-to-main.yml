@@ -32,18 +32,16 @@ jobs:
           # Merge dev into main (without pushing yet)
           git merge origin/dev --no-ff --no-edit
 
-      # Step 5: Push the merge commit to a temporary branch
-      - name: Push the merged changes to a temporary branch
+      # Step 5: Push directly to main branch
+      - name: Push merged changes to main
         run: |
-          git checkout -b temp-merge-branch
-          git push origin temp-merge-branch
+          git push origin main
 
-      # Step 6: Create a pull request from temp-merge-branch to main
+      # Step 6: Create Pull Request (optional, if you want manual approval)
       - name: Create Pull Request for manual merge in Databricks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create a pull request from the temp-merge-branch to main
           curl -X POST -H "Authorization: token $GITHUB_TOKEN" \
-            -d '{"title":"Auto-merge changes from dev to main","head":"temp-merge-branch","base":"main"}' \
+            -d '{"title":"Auto-merge changes from dev to main","head":"dev","base":"main"}' \
             "https://api.github.com/repos/${{ github.repository }}/pulls"
